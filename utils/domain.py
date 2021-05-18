@@ -114,7 +114,8 @@ def get_geometrical_center(image):
 
     return gc
 
-def get_joint_domain_images(fixed_image, moving_image, default_value=0, interpolator=2, cm_alignment=False, geo_alignment=False, compute_masks=False):
+def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_fixed_image,
+                            default_value=0, interpolator=2, cm_alignment=False, geo_alignment=False, compute_masks=False):
     """
     The method brings the fixed and moving image in a common image domain in order to be compatible with the
     registration framework of airlab. Different from the ITK convention, the registration in airlab is performed
@@ -133,8 +134,10 @@ def get_joint_domain_images(fixed_image, moving_image, default_value=0, interpol
     Note: The minimum possible value of the fixed image type is used as placeholder when resampling.
           Hence, this value should not be present in the images
 
-    fixed_image (Image): fixed image provided as airlab image
-    moving_image (Image): moving image provided as airlab image
+    fixed_image (Image): preprocessed fixed image provided as airlab image
+    moving_image (Image): preprocessed moving image provided as airlab image
+    orig_moving_image (Image): original moving image provided as airlab image
+    orig_fixed_image (Image): original fixed image provided as airlab image
     default_value (float|int): default value which defines the value which is set where the images are not defined in the new domain
     interpolator (int):  nn=1, linear=2, bspline=3
     cm_alignment (bool): defines whether the center of mass refinement should be performed prior to the resampling
@@ -152,12 +155,14 @@ def get_joint_domain_images(fixed_image, moving_image, default_value=0, interpol
     if cm_alignment and not geo_alignment:
         cm_displacement = get_center_of_mass(fixed_image) - get_center_of_mass(moving_image)
         moving_image.origin = moving_image.origin + cm_displacement
+        orig_moving_image.origin = orig_moving_image.origin + cm_displacement
 
     # align images using geometric center
     # if geo_center_alignment is True cm_alignment will be overwritten even when its True aswell
     if geo_alignment:
         cm_displacement = get_geometrical_center(fixed_image) - get_geometrical_center(moving_image)
         moving_image.origin = moving_image.origin + cm_displacement
+        orig_moving_image.origin = orig_moving_image.origin + cm_displacement
 
     # check if domains are equal, as then nothing has to be resampled
     if np.all(fixed_image.origin == moving_image.origin) and\
@@ -206,9 +211,17 @@ def get_joint_domain_images(fixed_image, moving_image, default_value=0, interpol
     # resample fixed and moving image
     f_image = Image(resampler.Execute(fixed_image.itk()))
     m_image = Image(resampler.Execute(moving_image.itk()))
+    # resample the original images with the correct default value
+    resampler.SetDefaultPixelValue(orig_moving_image.image.min().item())
+    o_m_image = Image(resampler.Execute(orig_moving_image.itk()))
+    resampler.SetDefaultPixelValue(orig_fixed_image.image.min().item())
+    o_f_image = Image(resampler.Execute(orig_fixed_image.itk()))
+
 
     f_image.to(dtype=fixed_image.dtype, device=fixed_image.device)
     m_image.to(dtype=moving_image.dtype, device=moving_image.device)
+    o_m_image.to(dtype=orig_moving_image.dtype, device=orig_moving_image.device)
+    o_f_image.to(dtype=orig_fixed_image.dtype, device=orig_fixed_image.device)
 
     # create masks
     if compute_masks:
@@ -225,6 +238,6 @@ def get_joint_domain_images(fixed_image, moving_image, default_value=0, interpol
         f_image.image[f_image.image == minimum_value] = default_value
         m_image.image[m_image.image == minimum_value] = default_value
 
-    return f_image, f_mask, m_image, m_mask, cm_displacement
+    return f_image, f_mask, m_image, m_mask, o_m_image, o_f_image, cm_displacement
 
 

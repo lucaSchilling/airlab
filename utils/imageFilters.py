@@ -14,6 +14,9 @@
 
 import os
 import multiprocessing as mp
+
+from ipywidgets import fixed
+
 os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(mp.cpu_count())
 
 import SimpleITK as sitk
@@ -72,21 +75,21 @@ def normalize_images(fixed_image, moving_image):
 
     min_val = min(fixed_min, moving_min)
 
-    fixed_image.image -= min_val
-    moving_image.image -= min_val
+    fixed_image.image -= fixed_min
+    moving_image.image -= moving_min
 
     moving_max = moving_image.image.max()
     fixed_max = fixed_image.image.max()
     max_val = max(fixed_max, moving_max)
 
-    fixed_image.image /= max_val
-    moving_image.image /= max_val
+    fixed_image.image /= fixed_max
+    moving_image.image /= moving_max
 
     return (fixed_image, moving_image)
 
 
 
-def remove_bed_filter(image, cropping=True):
+def remove_bed_filter(image, cropping=True, houndsfield_default = -1024):
     """
     Removes fine structures from the image using morphological operators. It can be used to remove the bed structure
     usually present in CT images. The resulting image and the respective body mask can be cropped with the cropping
@@ -102,7 +105,6 @@ def remove_bed_filter(image, cropping=True):
     # define parameters
     houndsfield_min = -300
     houndsfield_max = 3071
-    houndsfield_default = -1024
 
     radius_opening = 3
     radius_closing = 40

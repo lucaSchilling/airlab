@@ -98,7 +98,7 @@ def warp_image(image, displacement):
     grid = compute_grid(image_size, dtype=image.dtype, device=image.device)
 
     # warp image
-    warped_image = F.grid_sample(image.image, displacement + grid)
+    warped_image = F.grid_sample(image.image, displacement + grid, align_corners=True)
 
     return iutils.Image(warped_image, image_size, image.spacing, image.origin)
 
