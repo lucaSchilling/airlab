@@ -114,8 +114,8 @@ def get_geometrical_center(image):
 
     return gc
 
-def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_fixed_image,
-                            default_value=0, interpolator=2, cm_alignment=False, geo_alignment=False, compute_masks=False):
+def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_fixed_image, fixed_size=None,
+                            default_value=0, interpolator=2, cm_alignment=False, geo_alignment=False, compute_masks=False, max_memory=8e+7):
     """
     The method brings the fixed and moving image in a common image domain in order to be compatible with the
     registration framework of airlab. Different from the ITK convention, the registration in airlab is performed
@@ -144,6 +144,7 @@ def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_f
     geo_alignment ( bool): defines whether geometrical center refinement should be performed prior to the resampling.
           Note: this will overwrite the use of cm_alignment.
     compute_masks (bool): defines whether the masks should be created. otherwise, None is returned as masks.
+    fixed_size (List): defines a fixed size for the images that should be used. If set the Size will be taken and the spacing will calculated so the images fit into the new size.
     return (tuple): resampled fixed image, fixed mask, resampled moving image, moving mask
     """
     f_mask = None
@@ -174,7 +175,7 @@ def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_f
 
             f_mask = Image(f_mask, fixed_image.size, fixed_image.spacing, fixed_image.origin)
             m_mask = Image(m_mask, moving_image.size, moving_image.spacing, moving_image.origin)
-        return fixed_image, f_mask, moving_image, m_mask, None
+        return fixed_image, f_mask, moving_image, m_mask, None, None, None
 
     # common origin
     origin = np.minimum(fixed_image.origin, moving_image.origin)
@@ -189,6 +190,21 @@ def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_f
 
     # common size
     size = np.ceil(((extent-origin)/spacing)+1).astype(int)
+    memory_needed = np.prod(size)
+    # max_memory = 8e+7
+    if memory_needed > max_memory:
+        factor = memory_needed / max_memory
+        factor_per_dim = np.power(factor, (1./3.))
+        spacing = spacing * factor_per_dim
+        size = np.ceil(((extent - origin) / spacing) + 1).astype(int)
+
+    if len(fixed_size) > 0:
+        new_size = fixed_size
+        factor = size/new_size
+        #factor_per_dim = np.power(factor, (1./3.))
+        spacing = spacing * factor
+        size = new_size
+
 
     # Resample images
     # fixed and moving image are resampled in new domain
@@ -221,7 +237,7 @@ def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_f
     f_image.to(dtype=fixed_image.dtype, device=fixed_image.device)
     m_image.to(dtype=moving_image.dtype, device=moving_image.device)
     o_m_image.to(dtype=orig_moving_image.dtype, device=orig_moving_image.device)
-    o_f_image.to(dtype=orig_fixed_image.dtype, device=orig_fixed_image.device)
+    #o_f_image.to(dtype=orig_fixed_image.dtype, device=orig_fixed_image.device)
 
     # create masks
     if compute_masks:

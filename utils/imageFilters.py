@@ -89,7 +89,7 @@ def normalize_images(fixed_image, moving_image):
 
 
 
-def remove_bed_filter(image, cropping=True, houndsfield_default = -1024):
+def remove_bed_filter(image, cropping=True, masking=False, houndsfield_default = -1024):
     """
     Removes fine structures from the image using morphological operators. It can be used to remove the bed structure
     usually present in CT images. The resulting image and the respective body mask can be cropped with the cropping
@@ -190,4 +190,7 @@ def remove_bed_filter(image, cropping=True, houndsfield_default = -1024):
 
     outImage = masking.Execute(image_itk, bodyMask)
 
-    return (Image(outImage).to(device=image.device), Image(bodyMask).to(device=image.device))
+    if masking:
+        return (Image(outImage).to(device=image.device), Image(bodyMask).to(device=image.device))
+    else:
+        return (Image(outImage).to(device=image.device), None)
