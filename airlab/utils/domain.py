@@ -203,7 +203,10 @@ def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_f
         factor = size/new_size
         #factor_per_dim = np.power(factor, (1./3.))
         spacing = spacing * factor
+        num_layers_move_z_origin = round((new_size[2] - size[2] / 2) / 2)
+        origin[2] = (origin[2]- (num_layers_move_z_origin*spacing[2]))/4
         size = new_size
+
 
 
     # Resample images
