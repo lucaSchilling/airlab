@@ -168,7 +168,8 @@ def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_f
     # check if domains are equal, as then nothing has to be resampled
     if np.all(fixed_image.origin == moving_image.origin) and\
             np.all(fixed_image.spacing == moving_image.spacing) and\
-            np.all(fixed_image.size == moving_image.size):
+            np.all(fixed_image.size == moving_image.size) and\
+            not fixed_size:
         if compute_masks:
             f_mask = th.ones_like(fixed_image.image)
             m_mask = th.ones_like(moving_image.image)
@@ -186,25 +187,27 @@ def get_joint_domain_images(fixed_image, moving_image, orig_moving_image, orig_f
     extent = np.maximum(f_extent, m_extent)
 
     # common spacing
-    spacing = np.minimum(fixed_image.spacing, moving_image.spacing)
+    input_spacing = np.minimum(fixed_image.spacing, moving_image.spacing)
 
     # common size
-    size = np.ceil(((extent-origin)/spacing)+1).astype(int)
+    #size = np.ceil(((extent-origin)/spacing)+1).astype(int)
+    size = (((extent-origin)/input_spacing)+1).astype(int)
     memory_needed = np.prod(size)
     # max_memory = 8e+7
     if memory_needed > max_memory:
         factor = memory_needed / max_memory
         factor_per_dim = np.power(factor, (1./3.))
-        spacing = spacing * factor_per_dim
+        spacing = input_spacing * factor_per_dim
         size = np.ceil(((extent - origin) / spacing) + 1).astype(int)
 
     if len(fixed_size) > 0:
         new_size = fixed_size
         factor = size/new_size
         #factor_per_dim = np.power(factor, (1./3.))
-        spacing = spacing * factor
-        num_layers_move_z_origin = round((new_size[2] - size[2] / 2) / 2)
-        origin[2] = (origin[2]- (num_layers_move_z_origin*spacing[2]))/4
+        spacing = input_spacing * factor
+        origin = origin + (0.5*(spacing - input_spacing))
+        num_empty_layers = np.floor((new_size[2] - moving_image.size[2] / factor[2])/ 2)
+        origin[2] = (origin[2]- (num_empty_layers*spacing[2]))
         size = new_size
 
 
